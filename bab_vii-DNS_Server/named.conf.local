@@ -1,0 +1,14 @@
+# /etc/bind/named.conf.local
+# zona forward
+zone "lab.local" {
+    type master;
+    file "/etc/bind/db.lab";
+    # kalau sudah implementasi DDNS
+    # allow-update { key ddns-key; };
+};
+
+# zoba reverse 
+zone "10.168.192.in-addr.arpa" {
+    type master;
+    file "/etc/bind/db.reverse";
+};

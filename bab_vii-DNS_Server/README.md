@@ -48,7 +48,7 @@ nano /etc/network/interfaces
 Pada bagian konfigurasi antarmuka Anda (eth0 atau ens33), tambahkan baris `dns-nameservers` diikuti dengan alamat DNS yang ingin Anda gunakan . Anda dapat menambahkan lebih dari satu dengan spasi.
 Contoh:
 
-```bash
+```text
 auto ens33
 iface ens33 inet static
     address 192.168.10.2
@@ -486,20 +486,20 @@ Hubungkan client ke DHCP.
 
 Di client:
 
-```
+```bash
 ipconfig /release
 ipconfig /renew
 ```
 
 Lalu di server:
 
-```
+```bash
 dig client01.lab.local
 ```
 
 Atau cek file zona di:
 
-```
+```bash
 /var/lib/bind/db.lab
 ```
 
