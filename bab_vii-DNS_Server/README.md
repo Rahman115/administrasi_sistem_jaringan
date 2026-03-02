@@ -17,11 +17,8 @@
 Urutannya tidak boleh dibalik.
 
 ---
-# 📌 PROSEDUR STANDAR INSTALASI DNS SERVER (BIND9)
-
----
-
-## 1️⃣ Perencanaan Awal (Ini yang sering dilewati, lalu menyesal)
+## 📌 PROSEDUR STANDAR INSTALASI DNS SERVER (BIND9)
+### 1️⃣ Perencanaan Awal
 
 Sebelum install, tentukan:
 
@@ -37,7 +34,7 @@ Tanpa perencanaan, konfigurasi hanya jadi kumpulan file tanpa arah.
 
 ---
 
-## 2️⃣ Set IP Static
+### 2️⃣ Set IP Static
 
 DNS server wajib punya IP tetap.
 
@@ -73,7 +70,7 @@ Pastikan IP tidak berubah-ubah seperti janji mantan.
 
 ---
 
-## 3️⃣ Instalasi Paket BIND9
+### 3️⃣ Instalasi Paket BIND9
 
 Update repository:
 
@@ -97,7 +94,7 @@ Jika aktif, server sudah hidup. Tapi belum tahu harus menjawab apa.
 
 ---
 
-## 4️⃣ Struktur File Penting
+### 4️⃣ Struktur File Penting
 
 File utama konfigurasi ada di:
 
@@ -105,7 +102,7 @@ File utama konfigurasi ada di:
 /etc/bind/
 ```
 
-File penting:
+File penting, untuk melihat lakukan `ls` :
 
 * `named.conf`
 * `named.conf.options`
@@ -117,7 +114,7 @@ Biasanya zona baru ditambahkan di `named.conf.local`.
 
 ---
 
-## 5️⃣ Konfigurasi Forward Zone
+### 5️⃣ Konfigurasi Forward Zone
 
 Edit:
 
@@ -136,7 +133,7 @@ zone "lab.local" {
 
 ---
 
-## 6️⃣ Buat File Database Zona
+### 6️⃣ Buat File Database Zona
 
 Copy template:
 
@@ -176,7 +173,7 @@ Serial wajib naik setiap ada perubahan.
 
 ---
 
-## 7️⃣ Konfigurasi Reverse Zone (Standar Profesional)
+### 7️⃣ Konfigurasi Reverse Zone (Standar Profesional)
 
 Edit lagi:
 
@@ -218,7 +215,7 @@ Angka `2` berasal dari IP `192.168.10.2`.
 
 ---
 
-## 8️⃣ Validasi Konfigurasi (Bagian yang Menyelamatkan Harga Diri)
+### 8️⃣ Validasi Konfigurasi (Bagian yang Menyelamatkan Harga Diri)
 
 Cek syntax:
 
@@ -236,7 +233,7 @@ Kalau error, jangan restart dulu. Perbaiki.
 
 ---
 
-## 9️⃣ Restart Service
+### 9️⃣ Restart Service
 
 ```bash
 systemctl restart bind9
@@ -244,7 +241,7 @@ systemctl restart bind9
 
 ---
 
-## 🔟 Testing
+### 🔟 Testing
 
 Install dig:
 
@@ -272,3 +269,218 @@ Jika tidak, kembali ke langkah 8.
 DNS itu disiplin. Ia tidak mentolerir typo.
 
 ---
+
+
+## 📌 Alur Besar DDNS
+
+1. Install BIND
+2. Install DHCP
+3. Buat TSIG key
+4. Integrasikan key ke DNS
+5. Integrasikan key ke DHCP
+6. Pindahkan file zona ke direktori writable
+7. Restart service
+8. Test dengan client
+
+---
+
+### 📌 KONSEP DASAR DDNS
+
+Dynamic DNS memungkinkan:
+
+* DHCP memberikan IP
+* DHCP otomatis mengupdate DNS
+* Record A dan PTR dibuat tanpa kita edit file zona manual
+
+Artinya:
+Client hidup → dapat IP → langsung punya nama di DNS.
+
+Lebih elegan. Lebih hidup.
+
+---
+
+### 📌 SKENARIO
+
+Server IP: `192.168.10.2`
+Domain: `lab.local`
+DHCP melayani: `192.168.10.100-200`
+
+---
+
+### 1️⃣ Install DHCP Server
+
+```bash
+apt install isc-dhcp-server -y
+```
+
+Edit interface:
+
+```bash
+nano /etc/default/isc-dhcp-server
+```
+
+Isi:
+
+```
+INTERFACESv4="ens33"
+```
+
+---
+
+### 2️⃣ Buat TSIG Key (Kunci Rahasia DNS)
+
+DNS tidak akan menerima update sembarangan.
+Kita perlu kunci autentikasi.
+
+Buat key:
+
+```bash
+tsig-keygen -a HMAC-SHA256 ddns-key
+```
+
+Output contoh:
+
+```
+key "ddns-key" {
+    algorithm hmac-sha256;
+    secret "XXXXXXXXXXXXXXXXXXXXXXXX";
+};
+```
+
+Simpan isi itu di:
+
+```bash
+nano /etc/bind/ddns.key
+```
+
+Amankan:
+
+```bash
+chmod 640 /etc/bind/ddns.key
+chown root:bind /etc/bind/ddns.key
+```
+
+---
+
+### 3️⃣ Hubungkan Key ke BIND
+
+Edit:
+
+```bash
+nano /etc/bind/named.conf.local
+```
+
+Tambahkan:
+
+```
+include "/etc/bind/ddns.key";
+```
+
+Lalu ubah zona forward:
+
+```
+zone "lab.local" {
+    type master;
+    file "/var/lib/bind/db.lab";
+    allow-update { key ddns-key; };
+};
+```
+
+Perhatikan:
+File zona pindah ke `/var/lib/bind/` supaya bisa ditulis oleh BIND.
+
+Lakukan hal sama untuk reverse zone.
+
+---
+
+### 4️⃣ Ubah Permission Folder Zona
+
+```bash
+chown bind:bind /var/lib/bind/
+chmod 775 /var/lib/bind/
+```
+
+DNS perlu hak tulis. Jangan pelit izin.
+
+---
+
+### 5️⃣ Konfigurasi DHCP agar Update DNS
+
+Edit:
+
+```bash
+nano /etc/dhcp/dhcpd.conf
+```
+
+Tambahkan di bagian atas:
+
+```
+ddns-update-style interim;
+ignore client-updates;
+
+key ddns-key {
+    algorithm hmac-sha256;
+    secret "XXXXXXXXXXXXXXXXXXXXXXXX";
+}
+
+zone lab.local. {
+    primary 127.0.0.1;
+    key ddns-key;
+}
+
+zone 10.168.192.in-addr.arpa. {
+    primary 127.0.0.1;
+    key ddns-key;
+}
+```
+
+Lalu tambahkan subnet:
+
+```
+subnet 192.168.10.0 netmask 255.255.255.0 {
+    range 192.168.10.100 192.168.10.200;
+    option domain-name "lab.local";
+    option domain-name-servers 192.168.10.2;
+    option routers 192.168.10.1;
+}
+```
+
+---
+
+### 6️⃣ Restart Service
+
+Urutannya penting:
+
+```
+systemctl restart bind9
+systemctl restart isc-dhcp-server
+```
+
+Kalau dibalik dan gagal, jangan salahkan semesta.
+
+---
+
+### 7️⃣ Testing
+
+Hubungkan client ke DHCP.
+
+Di client:
+
+```
+ipconfig /release
+ipconfig /renew
+```
+
+Lalu di server:
+
+```
+dig client01.lab.local
+```
+
+Atau cek file zona di:
+
+```
+/var/lib/bind/db.lab
+```
+
+Kalau berhasil, record akan muncul otomatis.
