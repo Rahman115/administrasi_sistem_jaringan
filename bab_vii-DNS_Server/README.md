@@ -38,12 +38,14 @@ Tanpa perencanaan, konfigurasi hanya jadi kumpulan file tanpa arah.
 
 DNS server wajib punya IP tetap.
 
+1. Metode 1 : Langsung di File Konfigurasi Antarmuka
+Ini adalah metode yang disarankan karena pengaturannya akan persisten meskipun jaringan direstart.
 Edit:
 
 ```bash
-/etc/network/interfaces
+nano /etc/network/interfaces
 ```
-
+Pada bagian konfigurasi antarmuka Anda (eth0 atau ens33), tambahkan baris `dns-nameservers` diikuti dengan alamat DNS yang ingin Anda gunakan . Anda dapat menambahkan lebih dari satu dengan spasi.
 Contoh:
 
 ```bash
@@ -52,6 +54,7 @@ iface ens33 inet static
     address 192.168.10.2
     netmask 255.255.255.0
     gateway 192.168.10.1
+    dns-nameservers 8.8.8.8 8.8.4.4
 ```
 
 Restart network:
@@ -67,6 +70,23 @@ ip a
 ```
 
 Pastikan IP tidak berubah-ubah seperti janji mantan.
+2. Metode 2: Mengedit File `/etc/resolv.conf`
+Metode ini lebih langsung, namun pengaturannya bisa ditimpa oleh sistem lain.
+
+Buka file `/etc/resolv.conf`:
+
+```bash
+sudo nano /etc/resolv.conf
+```
+
+Tambahkan baris `nameserver` diikuti alamat DNS yang diinginkan . Setiap `nameserver` ditulis di baris baru.
+
+```text
+nameserver 8.8.8.8
+nameserver 8.8.4.4
+```
+
+Simpan file. Perubahan akan langsung berlaku.
 
 ---
 
