@@ -27,3 +27,5 @@ sudo apt-cdrom add
 
 sudo apt update
 ```
+
+https://chatgpt.com/share/6ab3479c-e638-83ec-8c51-9a3dbf7adfa4
